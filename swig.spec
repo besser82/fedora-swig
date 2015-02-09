@@ -1,4 +1,4 @@
-# We can skip tests
+# We can skip tests.
 %bcond_without testsuite
 
 %{!?tcl:%global tcl 1}
@@ -28,23 +28,36 @@
 %{!?octave:%global octave 1}
 %endif
 
+# Setup _pkgdocdir if not defined already.
+%{!?_pkgdocdir:%global _pkgdocdir %{_docdir}/%{name}-%{version}}
 
-Summary: Connects C/C++/Objective C to some high-level programming languages
+# Define %%license if not defined.
+%{!?license:%global license %doc %{_pkgdocdir}/}
+
+
 Name:    swig
 Version: 3.0.5
-Release: 2%{?dist}
+Release: 3%{?dist}
+Summary: Connects C/C++/Objective C to some high-level programming languages
+Group:   Development/Tools
+
 License: GPLv3+ and BSD
 URL:     http://swig.sourceforge.net/
 Source0: http://downloads.sourceforge.net/project/swig/swig/swig-%{version}/swig-%{version}.tar.gz
-# Define the part of man page sections
+# Define the part of man page sections.
 Source1: description.h2m
+
 Patch1:  swig207-setools.patch
-# Fix the failure on arch x390 during testing
+# Fix the failure on arch x390 during testing.
 Patch2:  swig-2.0.10-Fix-x390-build.patch
+
+%if 0%{?rhel} && 0%{?rhel} <= 5
+BuildRoot:     %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)}
+%endif
 
 BuildRequires: perl, python2-devel, pcre-devel
 BuildRequires: autoconf, automake, gawk, dos2unix
-BuildRequires: help2man
+BuildRequires: help2man, hardlink
 BuildRequires: perl-devel
 BuildRequires: perl(Test::More)
 BuildRequires: boost-devel
@@ -73,26 +86,58 @@ BuildRequires: R-devel
 BuildRequires: java, java-devel
 %endif
 
+Requires:      %{name}-common = %{version}-%{release}
+
 %description
-Simplified Wrapper and Interface Generator (SWIG) is a software
-development tool for connecting C, C++ and Objective C programs with a
-variety of high-level programming languages.  SWIG is primarily used
-with Perl, Python and Tcl/TK, but it has also been extended to Java,
-Eiffel and Guile. SWIG is normally used to create high-level
-interpreted programming environments, systems integration, and as a
-tool for building user interfaces
+SWIG is a software development tool that connects programs written in
+C and C++ with a variety of high-level programming languages.  SWIG is
+used with different types of target languages including common scripting
+languages such as Javascript, Perl, PHP, Python, Tcl and Ruby.  The list
+of supported languages also includes non-scripting languages such as C#,
+Common Lisp (CLISP, Allegro CL, CFFI, UFFI), D, Go language, Java
+including Android, Lua, Modula-3, OCAML, Octave, Scilab and R.  Also
+several interpreted and compiled Scheme implementations (Guile,
+MzScheme/Racket, Chicken) are supported.  SWIG is most commonly used to
+create high-level interpreted or compiled programming environments, user
+interfaces, and as a tool for testing and prototyping C/C++ software.
+SWIG is typically used to parse C/C++ interfaces and generate the 'glue
+code' required for the above target languages to call into the C/C++
+code.  SWIG can also export its parse tree in the form of XML and Lisp
+s-expressions.  SWIG is free software and the code that SWIG generates
+is compatible with both commercial and non-commercial projects.
+
+
+%package devel
+Summary: Common files used by SWIG to generate C-sources
+Group:   Development/Tools
+License: GPLv3+ and BSD
+
+%if 0%{?fedora} || 0%{?rhel} >= 6
+BuildArch: noarch
+%endif
+
+Requires: %{name}        = %{version}-%{release}
+Provides: %{name}-common = %{version}-%{release}
+
+%description devel
+This package contains common files used by SWIG to generate C-sources.
+
 
 %package doc
-Summary:   Documentation files for SWIG
-License:   BSD
-Group:     Development/Tools
+Summary: Documentation files for SWIG
+Group:   Documentation
+License: GPLv3+ and BSD
+
+%if 0%{?fedora} || 0%{?rhel} >= 6
 BuildArch: noarch
+%endif
 
 %description doc
-This package contains documentation for SWIG and useful examples
+This package contains documentation for SWIG and useful examples.
+
 
 %prep
-%setup -q -n swig-%{version}
+%setup -q
 
 %patch1 -p1 -b .setools
 %patch2 -p1 -b .x390
@@ -102,6 +147,7 @@ for all in CHANGES README; do
     touch -r $all $all.new
     mv -f $all.new $all
 done
+
 
 %build
 ./autogen.sh
@@ -127,54 +173,75 @@ done
 ;
 make %{?_smp_mflags}
 
-%if %{with testsuite}
-# Test suite
-make check
-%endif
 
 %install
-# Remove all arch dependent files in Examples/ created during tests
+# Remove all arch dependent files in Examples/ created during tests.
 make clean-examples
 
-pushd Examples/
-# Remove all arch dependent files in Examples/
-find -type f -name 'Makefile.in' -delete -print
+# Install documentation-files in unified %%{_pkgdocdir}.
+mkdir -p %{buildroot}%{_pkgdocdir}
+cp -a ANNOUNCE CHANGES CHANGES.current COPYRIGHT Doc Examples LICENSE \
+      LICENSE-GPL LICENSE-UNIVERSITIES README TODO \
+      %{buildroot}%{_pkgdocdir}
+
+hardlink -v %{buildroot}%{_pkgdocdir}
+
+pushd %{buildroot}%{_pkgdocdir}/Examples/
+# Remove all arch dependent files in Examples/.
+find -type f -name 'Makefile*' -delete -print
 
 # We don't want to ship files below.
 rm -rf test-suite
 find -type f -name '*.dsp' -delete -print
 find -type f -name '*.dsw' -delete -print
 
-# Convert files to UNIX format
-for all in `find -type f`; do
-    dos2unix -k $all
-    chmod -x $all
-done
+# Convert files to UNIX format.
+find -type f -print0 | xargs -0 dos2unix -k
+find -type f -print0 | xargs -0 chmod -c 0644
 popd
 
 make DESTDIR=%{buildroot} install
 
-# Use help output for generating of man page
+# Use help output for generating of man page.
 echo "Options:" >help_output
 %{buildroot}%{_bindir}/swig --help >>help_output
 
-# Update the output to be correctly formatted be help2man
+# Update the output to be correctly formatted be help2man.
 sed -i -e 's/^\(\s\+-[^-]\+\)- \(.*\)$/\1 \2/' help_output
 sed -i -e 's/^\(\s\+-\w\+-[^-]*\)- \(.*\)$/\1 \2/' help_output
 
-# Generate a helper script that will be used by help2man
+# Generate a helper script that will be used by help2man.
 cat >h2m_helper <<'EOF'
 #!/bin/bash
 [ "$1" == "--version" ] && echo "" || cat help_output
 EOF
 chmod a+x h2m_helper
 
-# Generate man page
+# Generate man page.
 help2man -N --section 1 ./h2m_helper --include %{SOURCE1} -o %{name}.1
 
-# Add man page for swig to repository
+# Add man page for swig to repository.
 mkdir -p %{buildroot}%{_mandir}/man1/
-install -p -m 0644 %{name}.1 %{buildroot}%{_mandir}/man1/
+install -pm 0644 %{name}.1 %{buildroot}%{_mandir}/man1/
+
+# Enable ccache-swig by default, if ccache is installed.
+mkdir -p %{buildroot}%{_libdir}/ccache
+ln -fs ../../bin/ccache-swig %{buildroot}%{_libdir}/ccache/swig
+
+# Get rid of 0-size rpmlint-warning.
+for _file in $(find %{buildroot}%{_datadir}/%{name} -size 0 -type f); do
+    echo "// empty" > ${_file}.new
+    touch -r ${_file} ${_file}.new
+    mv -f ${_file}.new ${_file}
+done
+
+
+%check
+%if %{with testsuite}
+# Run test-suite.
+make check
+%endif
+
 
 # Enable ccache-swig by default, if ccache is installed.
 mkdir -p %{buildroot}%{_libdir}/ccache
@@ -182,17 +249,45 @@ ln -fs ../../bin/ccache-swig %{buildroot}%{_libdir}/ccache/swig
 
 %files
 %{_bindir}/*
-%{_datadir}/swig
 %{_libdir}/ccache
 %{_mandir}/man1/ccache-swig.1*
 %{_mandir}/man1/swig.1*
-%doc ANNOUNCE CHANGES CHANGES.current LICENSE LICENSE-GPL
-%doc LICENSE-UNIVERSITIES COPYRIGHT README TODO
+%doc %dir %{_pkgdocdir}
+%doc %{_pkgdocdir}/README
+%license COPYRIGHT
+%license LICENSE
+%license LICENSE-GPL
+%license LICENSE-UNIVERSITIES
+
+%files devel
+%{_datadir}/%{name}
+%doc %dir %{_pkgdocdir}
+%doc %{_pkgdocdir}/ANNOUNCE
+%doc %{_pkgdocdir}/CHANGES
+%doc %{_pkgdocdir}/CHANGES.current
+%doc %{_pkgdocdir}/TODO
 
 %files doc
-%doc Doc Examples LICENSE LICENSE-GPL LICENSE-UNIVERSITIES COPYRIGHT
+%doc %{_pkgdocdir}
+%license COPYRIGHT
+%license LICENSE
+%license LICENSE-GPL
+%license LICENSE-UNIVERSITIES
+
 
 %changelog
+* Tue Feb 10 2015 Björn Esser <bjoern.esser@gmail.com> - 3.0.5-3
+- Split architecture-independent files in noarch'ed devel-subpkg
+- Install documentation-files in unified %%{_pkgdocdir}
+- Install license to %%license
+- Hardlink files in %%{_pkgdocdir}, saves about 2 MBytes
+- Move testsuite-run to %%check-section
+- Improvements in %%install-section
+- Fix "swig.spec:147: W: make-check-outside-check-section make check"
+- Fix "swig.spec:263: W: macro-in-%%changelog %%{ix86} %%{arm}"
+- Update %%description
+- Whitespace cosmetics
+
 * Tue Feb 10 2015 Björn Esser <bjoern.esser@gmail.com> - 3.0.5-2
 - Enable ccache-swig by default, if ccache is installed (#1176861)
 
@@ -228,7 +323,7 @@ ln -fs ../../bin/ccache-swig %{buildroot}%{_libdir}/ccache/swig
 - No golang or R on aarch64 (currently)
 
 * Tue Apr 22 2014 Karsten Hopp <karsten@redhat.com> 3.0.0-3
-- golang is exclusivearch %{ix86} x86_64 %{arm}, don't BR it on ppc*, s390*
+- golang is exclusivearch %%{ix86} x86_64 %%{arm}, don't BR it on ppc*, s390*
 - unit tests fail on other ppc archs, too. disable for now
 
 * Fri Mar 28 2014 Jitka Plesnikova <jplesnik@redhat.com> - 3.0.0-2
@@ -458,12 +553,12 @@ ln -fs ../../bin/ccache-swig %{buildroot}%{_libdir}/ccache/swig
 - swig can determine architecture now (#211095)
 
 * Mon Aug 28 2006 Jitka Kudrnacova <jkudrnac@redhat.com> -1.3.29-1
--rebuilt 
+- rebuilt
 
 * Tue Jul 18 2006 Jitka Kudrnacova <jkudrnac@redhat.com> - 1.3.29-0.3
-- rebuilt 
+- rebuilt
 
-* Fri Jun 30 2006 Jitka Kudrnacova <jkudrnac@redhat.com> - 1.3.29-0.2 
+* Fri Jun 30 2006 Jitka Kudrnacova <jkudrnac@redhat.com> - 1.3.29-0.2
 - Build requires autoconf, automake (bug #197132)
 
 * Wed Apr 19 2006 Jitka Kudrnacova <jkudrnac@redhat.com> - 1.3.29-0.1
@@ -484,13 +579,13 @@ ln -fs ../../bin/ccache-swig %{buildroot}%{_libdir}/ccache/swig
 * Wed Mar 02 2005 Phil Knirsch <pknirsch@redhat.com> 1.3.24-2
 - bump release and rebuild with gcc 4
 
-* Thu Feb 03 2005 Karsten Hopp <karsten@redhat.de> 1.3.24-1 
+* Thu Feb 03 2005 Karsten Hopp <karsten@redhat.de> 1.3.24-1
 - update
 
 * Wed Dec 01 2004 Phil Knirsch <pknirsch@redhat.com> 1.3.23-2
 - rebuild
 
-* Tue Nov 23 2004 Karsten Hopp <karsten@redhat.de> 1.3.23-1 
+* Tue Nov 23 2004 Karsten Hopp <karsten@redhat.de> 1.3.23-1
 - update
 - new pylib patch
 - remove destdir patch, swig.m4 is no longer included
@@ -603,7 +698,7 @@ ln -fs ../../bin/ccache-swig %{buildroot}%{_libdir}/ccache/swig
 - rebuilt for 6.1
 
 * Thu Apr 15 1999 Michael Maher <mike@redhat.com>
-- built package for 6.0 
+- built package for 6.0
 
 * Tue Sep 15 1998 Michael Maher <mike@redhat.com>
 - built package
