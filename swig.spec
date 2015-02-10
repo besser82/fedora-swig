@@ -32,61 +32,66 @@
 %{!?_pkgdocdir:%global _pkgdocdir %{_docdir}/%{name}-%{version}}
 
 # Define %%license if not defined.
-%{!?license:%global license %doc %{_pkgdocdir}/}
+%global backport_license %doc %{_pkgdocdir}/
+%{!?license:%global license %{backport_license}}
 
 
-Name:    swig
-Version: 3.0.5
-Release: 3%{?dist}
-Summary: Connects C/C++/Objective C to some high-level programming languages
-Group:   Development/Tools
+Name:		swig
+Version:	3.0.5
+Release:	3%{?dist}
+Summary:	Connects C/C++/Objective C to some high-level programming languages
+Group:		Development/Tools
 
-License: GPLv3+ and BSD
-URL:     http://swig.sourceforge.net/
-Source0: http://downloads.sourceforge.net/project/swig/swig/swig-%{version}/swig-%{version}.tar.gz
+License:	GPLv3+ and BSD
+URL:		http://www.%{name}.org/
+Source0:	http://downloads.sourceforge.net/project/%{name}/%{name}/%{name}-%{version}/%{name}-%{version}.tar.gz
+
 # Define the part of man page sections.
-Source1: description.h2m
+Source1:	description.h2m
 
-Patch1:  swig207-setools.patch
+Patch1:		swig207-setools.patch
 # Fix the failure on arch x390 during testing.
-Patch2:  swig-2.0.10-Fix-x390-build.patch
+Patch2:		swig-2.0.10-Fix-x390-build.patch
 
 %if 0%{?rhel} && 0%{?rhel} <= 5
-BuildRoot:     %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)}
+BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)}
 %endif
 
-BuildRequires: perl, python2-devel, pcre-devel
-BuildRequires: autoconf, automake, gawk, dos2unix
-BuildRequires: help2man, hardlink
-BuildRequires: perl-devel
-BuildRequires: perl(Test::More)
-BuildRequires: boost-devel
+BuildRequires:	automake
+BuildRequires:	boost-devel
+BuildRequires:	dos2unix
+BuildRequires:	hardlink
+BuildRequires:	help2man
+BuildRequires:	pcre-devel
+BuildRequires:	perl-devel
+BuildRequires:	perl(Test::More)
+BuildRequires:	python2-devel
 %if %{tcl}
-BuildRequires: tcl-devel
+BuildRequires:	tcl-devel
 %endif
 %if %{guile}
-BuildRequires: guile-devel
+BuildRequires:	guile-devel
 %endif
 %if %{octave}
-BuildRequires: octave-devel
+BuildRequires:	octave-devel
 %endif
 %if %{golang}
-BuildRequires: golang
+BuildRequires:	golang
 %endif
 %if %{lualang}
-BuildRequires: lua-devel
+BuildRequires:	lua-devel
 %endif
 %if %{rubylang}
-BuildRequires: ruby-devel
+BuildRequires:	ruby-devel
 %endif
 %if %{Rlang}
-BuildRequires: R-devel
+BuildRequires:	R-devel
 %endif
 %if %{javalang}
-BuildRequires: java, java-devel
+BuildRequires:	java-devel
 %endif
 
-Requires:      %{name}-common = %{version}-%{release}
+Requires:	%{name}-common	== %{version}-%{release}
 
 %description
 SWIG is a software development tool that connects programs written in
@@ -108,28 +113,28 @@ is compatible with both commercial and non-commercial projects.
 
 
 %package devel
-Summary: Common files used by SWIG to generate C-sources
-Group:   Development/Tools
-License: GPLv3+ and BSD
+Summary:	Common files used by SWIG to generate C-sources
+Group:		Development/Tools
+License:	GPLv3+ and BSD
 
 %if 0%{?fedora} || 0%{?rhel} >= 6
-BuildArch: noarch
+BuildArch:	noarch
 %endif
 
-Requires: %{name}        = %{version}-%{release}
-Provides: %{name}-common = %{version}-%{release}
+Requires:	%{name}		== %{version}-%{release}
+Provides:	%{name}-common	== %{version}-%{release}
 
 %description devel
 This package contains common files used by SWIG to generate C-sources.
 
 
 %package doc
-Summary: Documentation files for SWIG
-Group:   Documentation
-License: GPLv3+ and BSD
+Summary:	Documentation files for SWIG
+Group:		Documentation
+License:	GPLv3+ and BSD
 
 %if 0%{?fedora} || 0%{?rhel} >= 6
-BuildArch: noarch
+BuildArch:	noarch
 %endif
 
 %description doc
@@ -143,9 +148,9 @@ This package contains documentation for SWIG and useful examples.
 %patch2 -p1 -b .x390
 
 for all in CHANGES README; do
-    iconv -f ISO88591 -t UTF8 < $all > $all.new
-    touch -r $all $all.new
-    mv -f $all.new $all
+	iconv -f ISO88591 -t UTF8 < $all > $all.new
+	touch -r $all $all.new
+	mv -f $all.new $all
 done
 
 
@@ -156,19 +161,19 @@ done
 # code produces lots of the warnings demanded by strict ISO C and ISO C++.
 # It causes that log had more then 600M.
 %configure \
-  --without-ocaml \
+	--without-ocaml \
 %if ! %{javalang}
-  --without-java \
+	--without-java \
 %endif
 %if ! %{Rlang}
-  --without-r \
+	--without-r \
 %endif
 %if ! %{golang}
-  --without-go \
+	--without-go \
 %endif
 %if %{octave}
-  --with-octave=/usr/bin/octave \
-  --without-maximum-compile-warnings \
+	--with-octave=/usr/bin/octave \
+	--without-maximum-compile-warnings \
 %endif
 ;
 make %{?_smp_mflags}
@@ -180,10 +185,15 @@ make clean-examples
 
 # Install documentation-files in unified %%{_pkgdocdir}.
 mkdir -p %{buildroot}%{_pkgdocdir}
-cp -a ANNOUNCE CHANGES CHANGES.current COPYRIGHT Doc Examples LICENSE \
-      LICENSE-GPL LICENSE-UNIVERSITIES README TODO \
-      %{buildroot}%{_pkgdocdir}
+cp -a	ANNOUNCE CHANGES CHANGES.current COPYRIGHT Doc Examples	\
+	LICENSE* README TODO %{buildroot}%{_pkgdocdir}
 
+# Remove duplicated files, if they get picked up by %%license.
+%if "%license" != "%{backport_license}"
+rm -f %{buildroot}%{_pkgdocdir}/{COPYRIGHT,LICENSE*}
+%endif # "%%license" != "%%{backport_license}"
+
+# Hardlink files in %%{_pkgdocdir}, saves about 2 MBytes.
 hardlink -v %{buildroot}%{_pkgdocdir}
 
 pushd %{buildroot}%{_pkgdocdir}/Examples/
@@ -203,19 +213,19 @@ popd
 make DESTDIR=%{buildroot} install
 
 # Use help output for generating of man page.
-echo "Options:" >help_output
-%{buildroot}%{_bindir}/swig --help >>help_output
+echo "Options:" > help_output
+%{buildroot}%{_bindir}/swig --help >> help_output
 
 # Update the output to be correctly formatted be help2man.
 sed -i -e 's/^\(\s\+-[^-]\+\)- \(.*\)$/\1 \2/' help_output
 sed -i -e 's/^\(\s\+-\w\+-[^-]*\)- \(.*\)$/\1 \2/' help_output
 
 # Generate a helper script that will be used by help2man.
-cat >h2m_helper <<'EOF'
+cat > h2m_helper << 'EOF'
 #!/bin/bash
 [ "$1" == "--version" ] && echo "" || cat help_output
 EOF
-chmod a+x h2m_helper
+chmod 0755 h2m_helper
 
 # Generate man page.
 help2man -N --section 1 ./h2m_helper --include %{SOURCE1} -o %{name}.1
@@ -230,10 +240,14 @@ ln -fs ../../bin/ccache-swig %{buildroot}%{_libdir}/ccache/swig
 
 # Get rid of 0-size rpmlint-warning.
 for _file in $(find %{buildroot}%{_datadir}/%{name} -size 0 -type f); do
-    echo "// empty" > ${_file}.new
-    touch -r ${_file} ${_file}.new
-    mv -f ${_file}.new ${_file}
+	echo "// empty" > $_file.new
+	touch -r $_file $_file.new
+	mv -f $_file.new $_file
 done
+
+# Enable ccache-swig by default, if ccache is installed.
+mkdir -p %{buildroot}%{_libdir}/ccache
+ln -fs ../../bin/ccache-swig %{buildroot}%{_libdir}/ccache/swig
 
 
 %check
@@ -242,10 +256,6 @@ done
 make check
 %endif
 
-
-# Enable ccache-swig by default, if ccache is installed.
-mkdir -p %{buildroot}%{_libdir}/ccache
-ln -fs ../../bin/ccache-swig %{buildroot}%{_libdir}/ccache/swig
 
 %files
 %{_bindir}/*
